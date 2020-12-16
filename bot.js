@@ -8,8 +8,6 @@ const bot = new Discord.Client({
 
 let isReady = true
 let isLogging = true
-const logChannelID = '788707124858585128'
-const lobbyChannelID = '632447830723788810'
 
 bot.login(auth.token)
 
@@ -27,10 +25,10 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
     if (isLogging) {
         if (oldChannel === null && newChannel !== null) {
             console.log('Someone joined voice')
-            bot.channels.cache.get(logChannelID).send(oldState.member.user.username + ' saapui voiceen')
+            bot.channels.cache.get(auth.logID).send(oldState.member.user.username + ' saapui voiceen')
         } else if (newChannel === null) {
             console.log('Someone left voice')
-            bot.channels.cache.get(logChannelID).send(oldState.member.user.username + ' lähti voicesta')
+            bot.channels.cache.get(auth.logID).send(oldState.member.user.username + ' lähti voicesta')
         }
     }
 
@@ -48,8 +46,8 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
 
 bot.on('guildMemberAdd', member => {
     console.log(member + 'joined server')
-    bot.channels.cache.get(lobbyChannelID).send('Tervetuloa ' + member + '!')
-    bot.channels.cache.get(lobbyChannelID).send('Pistä viestiä @admin niin saatat saada oikeudet muillekkin kanaville.')
+    bot.channels.cache.get(auth.lobbyID).send('Tervetuloa ' + member + '!')
+    bot.channels.cache.get(auth.lobbyID).send('Pistä viestiä @admin niin saatat saada oikeudet muillekkin kanaville.')
 });
 
 bot.on('message', msg => {
