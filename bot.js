@@ -1,5 +1,8 @@
 const Discord = require('discord.js');
 const auth = require('./auth.json');
+const pubg = require('pubg.js');
+const shard = 'steam'
+const pubgClient = new pubg.Client(auth.pubgAPIKey, shard)
 
 const bot = new Discord.Client({
     token: auth.token,
@@ -10,6 +13,7 @@ let isReady = true
 let isLogging = true
 
 bot.login(auth.token)
+    .catch(err => console.log(err))
 
 bot.on('ready', () => {
     console.log('Bot connected');
@@ -19,8 +23,6 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
 
     let oldChannel = oldState.channel
     let newChannel = newState.channel
-    // console.log('Old: '+ oldChannel)
-    // console.log('New: '+ newChannel)
 
     if (isLogging) {
         if (oldChannel === null && newChannel !== null) {
@@ -50,16 +52,116 @@ bot.on('guildMemberAdd', member => {
     bot.channels.cache.get(auth.lobbyID).send('Pistä viestiä @admin niin saatat saada oikeudet muillekkin kanaville.')
 });
 
-bot.on('message', msg => {
+bot.on('message', async msg => {
         if (msg.content.substring(0, 1) === '>') {
             let args = msg.content.substring(1).split(' ');
             let cmd = args[0].toLowerCase();
+            let cmdArg1 = args[1]
+            let cmdArg2 = args[2]
+            if (cmdArg2) {
+                cmdArg2.toLowerCase()
+            }
+
             let sender = msg.member.displayName
 
             console.log('Command: ' + cmd + ' from: ' + sender)
             if (isReady) {
                 isReady = false
                 switch (cmd) {
+                    //PUBG
+                    case 'pubg':
+                        if (cmdArg1) {
+
+                            let player = await pubgClient.getPlayer({name: cmdArg1})
+                            let playerID = JSON.stringify(player.id).replace(/"/g, '')
+
+                            let currentSeason = await pubgClient.getCurrentSeason()
+                                .then(currentSeason => {
+                                    return currentSeason
+                                })
+                                .catch(err => console.log(err))
+
+                            let playerSeason = await pubgClient.getPlayerSeason(playerID, currentSeason.id, shard)
+                                .then(playerSeason => {
+                                    return playerSeason
+                                })
+                                .catch(err => console.log(err))
+
+                            console.log('PlayerID: ' + playerID + " SeasonID: " + currentSeason.id)
+
+                            let kills = "kills"
+                            let assists = "assists"
+                            let damage = "damage"
+                            let wins = "wins"
+                            let headshotKills = "headshotKills"
+                            let longestKill = "longestKill"
+                            let top10s = "top10s"
+                            let modeIsValid = true
+
+                            if (cmdArg2 === "solo") {
+                                kills = playerSeason.attributes.gameModeStats.soloFPP.kills
+                                assists = playerSeason.attributes.gameModeStats.soloFPP.assists
+                                damage = playerSeason.attributes.gameModeStats.soloFPP.damageDealt
+                                headshotKills = playerSeason.attributes.gameModeStats.soloFPP.headshotKills
+                                longestKill = playerSeason.attributes.gameModeStats.soloFPP.longestKill
+                                wins = playerSeason.attributes.gameModeStats.soloFPP.wins
+                                top10s = playerSeason.attributes.gameModeStats.soloFPP.top10s
+                            } else if (cmdArg2 === "duo") {
+                                kills = playerSeason.attributes.gameModeStats.duoFPP.kills
+                                assists = playerSeason.attributes.gameModeStats.duoFPP.assists
+                                damage = playerSeason.attributes.gameModeStats.duoFPP.damageDealt
+                                headshotKills = playerSeason.attributes.gameModeStats.duoFPP.headshotKills
+                                longestKill = playerSeason.attributes.gameModeStats.duoFPP.longestKill
+                                wins = playerSeason.attributes.gameModeStats.duoFPP.wins
+                                top10s = playerSeason.attributes.gameModeStats.duoFPP.top10s
+                            } else if (cmdArg2 === "squad") {
+                                kills = playerSeason.attributes.gameModeStats.squadFPP.kills
+                                assists = playerSeason.attributes.gameModeStats.squadFPP.assists
+                                damage = playerSeason.attributes.gameModeStats.squadFPP.damageDealt
+                                headshotKills = playerSeason.attributes.gameModeStats.squadFPP.headshotKills
+                                longestKill = playerSeason.attributes.gameModeStats.squadFPP.longestKill
+                                wins = playerSeason.attributes.gameModeStats.squadFPP.wins
+                                top10s = playerSeason.attributes.gameModeStats.squadFPP.top10s
+                            } else if (cmdArg2 === "all") {
+                                kills = playerSeason.attributes.gameModeStats.squadFPP.kills + playerSeason.attributes.gameModeStats.duoFPP.kills + playerSeason.attributes.gameModeStats.soloFPP.kills
+                                assists = playerSeason.attributes.gameModeStats.squadFPP.assists + playerSeason.attributes.gameModeStats.duoFPP.assists + playerSeason.attributes.gameModeStats.soloFPP.assists
+                                damage = playerSeason.attributes.gameModeStats.squadFPP.damageDealt + playerSeason.attributes.gameModeStats.duoFPP.damageDealt + playerSeason.attributes.gameModeStats.soloFPP.damageDealt
+                                headshotKills = playerSeason.attributes.gameModeStats.squadFPP.headshotKills + playerSeason.attributes.gameModeStats.duoFPP.headshotKills + playerSeason.attributes.gameModeStats.soloFPP.headshotKills
+                                wins = playerSeason.attributes.gameModeStats.squadFPP.wins + playerSeason.attributes.gameModeStats.duoFPP.wins + playerSeason.attributes.gameModeStats.soloFPP.wins
+                                top10s = playerSeason.attributes.gameModeStats.squadFPP.top10s + playerSeason.attributes.gameModeStats.duoFPP.top10s + playerSeason.attributes.gameModeStats.soloFPP.top10s
+
+                                const soloLongest = playerSeason.attributes.gameModeStats.soloFPP.longestKill
+                                const duoLongest = playerSeason.attributes.gameModeStats.duoFPP.longestKill
+                                const squadLongest = playerSeason.attributes.gameModeStats.squadFPP.longestKill
+
+                                longestKill = Math.max(soloLongest, duoLongest, squadLongest)
+
+                            } else {
+                                modeIsValid = false
+                                console.log('Invalid game mode')
+                                msg.channel.send('Kirjota oikea moodi!')
+                                isReady = true
+                            }
+
+                            if (modeIsValid) {
+                                longestKill = Math.round((longestKill + Number.EPSILON) * 100) / 100
+                                msg.channel.send(cmdArg1
+                                    + '\n\nVoPet: ' + wins
+                                    + '\nTapot: ' + kills
+                                    + '\nHeadshot-tapot: ' + headshotKills
+                                    + "\nPisin tappo: " + longestKill + "m"
+                                    + "\nDamage: " + damage
+                                    + '\nAssistit: ' + assists
+                                    + '\nTop10: ' + top10s
+                                )
+                                isReady = true
+                            }
+
+                        } else {
+                            console.log('Invalid player name')
+                            msg.channel.send('Kirjota pelaajan nimi!')
+                        }
+                        break;
                     //Voice
                     case 'poistu':
                         if (msg.member.voice.channel !== null) {
@@ -193,7 +295,7 @@ bot.on('message', msg => {
                         break;
                     case 'kalja':
                         if (msg.member.voice.channel) {
-                            msg.react('👍')
+                            msg.react('🍻')
                             msg.member.voice.channel.join()
                                 .then(connection => connection.play('./media/kaljaviina.mp3'))
                         } else {
@@ -217,7 +319,7 @@ bot.on('message', msg => {
                             msg.member.voice.channel.join()
                                 .then(connection => connection.play('./media/otaviinaa.mp3'))
                         } else {
-                            msg.channel.send('Ota viinaa')
+                            msg.channel.send('Ota viinaa!')
                         }
                         isReady = true
                         break;
@@ -268,13 +370,16 @@ bot.on('message', msg => {
                         isReady = true
                         break;
                     case'help':
-                        msg.channel.send('NIILOBOT 0.2' +
-                            '\n\n>niilo (kysymys)           Niilo vastaa kysymykseen' +
-                            '\n>viisaus         Niilo kertoo elämänviisauksiaan' +
-                            '\n>rate         Niilo antaa arvosanan' +
-                            '\n>poistu          Käskee Niilon pois voicesta paasaamasta' +
-                            '\n>loki          Aloittaa tai lopettaa lokiviestien lähetyksen' +
-                            '\n>help          Näyttää nämä komennot tässä näin' +
+                        msg.channel.send('NIILOBOT 0.3' +
+                            '\n\n>niilo (kysymys)                       Niilo vastaa kysymykseen' +
+                            '\n>viisaus                     Niilo kertoo elämänviisauksiaan' +
+                            '\n>rate                    Niilo antaa arvosanan' +
+                            '\n>poistu                      Käskee Niilon pois voicesta paasaamasta' +
+                            '\n>loki                    Aloittaa tai lopettaa lokiviestien lähetyksen' +
+                            '\n>help                     Näyttää nämä komennot tässä näin' +
+                            '\n>pubg [pelaajan nimi] [moodi]                     Kertoo pubgin statseja meneillään olevasta seasonista.' +
+                            '\n\nEsim. komento ">pubg Mehu_Mies squad" kertoo Mehumiehen tämän seasonin statsit squadissa. Kertoo vain FPP-pelien tulokset koska eihän niitä TPP-pelejä kukaan pelaa lol.' +
+                            ' Valittavat moodit: solo, duo, squad ja all.' +
                             '\n\nMuita komentoja:' +
                             '\n>meetöihin' +
                             '\n>syötkeksiä' +
@@ -288,10 +393,16 @@ bot.on('message', msg => {
                         break;
                     default:
                         if (msg.member.voice.channel) {
-                            msg.member.voice.channel.join()
-                                .then(connection => connection.play('./media/mitavittua.mp3'))
+                            let rate = getRandom(2)
+                            if (rate === 0) {
+                                msg.member.voice.channel.join()
+                                    .then(connection => connection.play('./media/mita.mp3'))
+                            } else {
+                                msg.member.voice.channel.join()
+                                    .then(connection => connection.play('./media/mitavittua.mp3'))
+                            }
                         } else {
-                            msg.channel.send('Mitä vittua tää ny meinaa ' + sender)
+                            msg.channel.send('Mitä vittua tää ny meinaa ' + sender + '?')
                         }
                         isReady = true
                         break;
