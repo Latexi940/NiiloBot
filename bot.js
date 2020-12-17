@@ -3,6 +3,7 @@ const auth = require('./auth.json');
 const pubg = require('pubg.js');
 const shard = 'steam'
 const pubgClient = new pubg.Client(auth.pubgAPIKey, shard)
+let currentSeason = ""
 
 const bot = new Discord.Client({
     token: auth.token,
@@ -15,8 +16,13 @@ let isLogging = true
 bot.login(auth.token)
     .catch(err => console.log(err))
 
-bot.on('ready', () => {
-    console.log('Bot connected');
+bot.on('ready', async () => {
+    currentSeason = await pubgClient.getCurrentSeason()
+        .then(currentSeason => {
+            console.log('Bot connected');
+            return currentSeason
+        })
+        .catch(err => console.log('Error getting current season:' + err.message))
 });
 
 bot.on('voiceStateUpdate', (oldState, newState) => {
@@ -26,10 +32,10 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
 
     if (isLogging) {
         if (oldChannel === null && newChannel !== null) {
-            console.log('Someone joined voice')
+            console.log(oldState.member.user.username + ' joined voice')
             bot.channels.cache.get(auth.logID).send(oldState.member.user.username + ' saapui voiceen')
         } else if (newChannel === null) {
-            console.log('Someone left voice')
+            console.log(oldState.member.user.username + ' left voice')
             bot.channels.cache.get(auth.logID).send(oldState.member.user.username + ' lähti voicesta')
         }
     }
@@ -61,109 +67,122 @@ bot.on('message', async msg => {
             if (cmdArg2) {
                 cmdArg2.toLowerCase()
             }
+            let isFetchingDone = true
 
             let sender = msg.member.displayName
 
-            console.log('Command: ' + cmd + ' from: ' + sender)
+            console.log('Command: ' + cmd + ' from: ' + sender + '. isReady=' + isReady)
             if (isReady) {
                 isReady = false
                 switch (cmd) {
                     //PUBG
                     case 'pubg':
                         if (cmdArg1) {
-
-                            let player = await pubgClient.getPlayer({name: cmdArg1})
-                            let playerID = JSON.stringify(player.id).replace(/"/g, '')
-
-                            let currentSeason = await pubgClient.getCurrentSeason()
-                                .then(currentSeason => {
-                                    return currentSeason
-                                })
-                                .catch(err => console.log(err))
-
-                            let playerSeason = await pubgClient.getPlayerSeason(playerID, currentSeason.id, shard)
-                                .then(playerSeason => {
-                                    return playerSeason
-                                })
-                                .catch(err => console.log(err))
-
-                            console.log('PlayerID: ' + playerID + " SeasonID: " + currentSeason.id)
-
-                            let kills = "kills"
-                            let assists = "assists"
-                            let damage = "damage"
-                            let wins = "wins"
-                            let headshotKills = "headshotKills"
-                            let longestKill = "longestKill"
-                            let top10s = "top10s"
                             let modeIsValid = true
+                            let player = await pubgClient.getPlayer({name: cmdArg1})
+                                .then(player => {
+                                    return player
+                                })
+                                .catch(err => console.log('Error getting player: ' + err.message))
+                            if (player) {
+                                let playerID = JSON.stringify(player.id).replace(/"/g, '')
 
-                            if (cmdArg2 === "solo") {
-                                kills = playerSeason.attributes.gameModeStats.soloFPP.kills
-                                assists = playerSeason.attributes.gameModeStats.soloFPP.assists
-                                damage = playerSeason.attributes.gameModeStats.soloFPP.damageDealt
-                                headshotKills = playerSeason.attributes.gameModeStats.soloFPP.headshotKills
-                                longestKill = playerSeason.attributes.gameModeStats.soloFPP.longestKill
-                                wins = playerSeason.attributes.gameModeStats.soloFPP.wins
-                                top10s = playerSeason.attributes.gameModeStats.soloFPP.top10s
-                            } else if (cmdArg2 === "duo") {
-                                kills = playerSeason.attributes.gameModeStats.duoFPP.kills
-                                assists = playerSeason.attributes.gameModeStats.duoFPP.assists
-                                damage = playerSeason.attributes.gameModeStats.duoFPP.damageDealt
-                                headshotKills = playerSeason.attributes.gameModeStats.duoFPP.headshotKills
-                                longestKill = playerSeason.attributes.gameModeStats.duoFPP.longestKill
-                                wins = playerSeason.attributes.gameModeStats.duoFPP.wins
-                                top10s = playerSeason.attributes.gameModeStats.duoFPP.top10s
-                            } else if (cmdArg2 === "squad") {
-                                kills = playerSeason.attributes.gameModeStats.squadFPP.kills
-                                assists = playerSeason.attributes.gameModeStats.squadFPP.assists
-                                damage = playerSeason.attributes.gameModeStats.squadFPP.damageDealt
-                                headshotKills = playerSeason.attributes.gameModeStats.squadFPP.headshotKills
-                                longestKill = playerSeason.attributes.gameModeStats.squadFPP.longestKill
-                                wins = playerSeason.attributes.gameModeStats.squadFPP.wins
-                                top10s = playerSeason.attributes.gameModeStats.squadFPP.top10s
-                            } else if (cmdArg2 === "all") {
-                                kills = playerSeason.attributes.gameModeStats.squadFPP.kills + playerSeason.attributes.gameModeStats.duoFPP.kills + playerSeason.attributes.gameModeStats.soloFPP.kills
-                                assists = playerSeason.attributes.gameModeStats.squadFPP.assists + playerSeason.attributes.gameModeStats.duoFPP.assists + playerSeason.attributes.gameModeStats.soloFPP.assists
-                                damage = playerSeason.attributes.gameModeStats.squadFPP.damageDealt + playerSeason.attributes.gameModeStats.duoFPP.damageDealt + playerSeason.attributes.gameModeStats.soloFPP.damageDealt
-                                headshotKills = playerSeason.attributes.gameModeStats.squadFPP.headshotKills + playerSeason.attributes.gameModeStats.duoFPP.headshotKills + playerSeason.attributes.gameModeStats.soloFPP.headshotKills
-                                wins = playerSeason.attributes.gameModeStats.squadFPP.wins + playerSeason.attributes.gameModeStats.duoFPP.wins + playerSeason.attributes.gameModeStats.soloFPP.wins
-                                top10s = playerSeason.attributes.gameModeStats.squadFPP.top10s + playerSeason.attributes.gameModeStats.duoFPP.top10s + playerSeason.attributes.gameModeStats.soloFPP.top10s
+                                await pubgClient.getPlayerSeason(playerID, currentSeason.id, shard)
+                                    .then(playerSeason => {
+                                        isFetchingDone = true
+                                        let soloStats = playerSeason.attributes.gameModeStats.soloFPP
+                                        let duoStats = playerSeason.attributes.gameModeStats.duoFPP
+                                        let squadStats = playerSeason.attributes.gameModeStats.squadFPP
 
-                                const soloLongest = playerSeason.attributes.gameModeStats.soloFPP.longestKill
-                                const duoLongest = playerSeason.attributes.gameModeStats.duoFPP.longestKill
-                                const squadLongest = playerSeason.attributes.gameModeStats.squadFPP.longestKill
+                                        let rounds = "rounds"
+                                        let kills = "kills"
+                                        let assists = "assists"
+                                        let damage = "damage"
+                                        let wins = "wins"
+                                        let headshotKills = "headshotKills"
+                                        let longestKill = "longestKill"
+                                        let top10s = "top10s"
 
-                                longestKill = Math.max(soloLongest, duoLongest, squadLongest)
+                                        if (cmdArg2 === "solo") {
+                                            rounds = soloStats.roundsPlayed
+                                            kills = soloStats.kills
+                                            assists = soloStats.assists
+                                            damage = soloStats.damageDealt
+                                            headshotKills = soloStats.headshotKills
+                                            longestKill = soloStats.longestKill
+                                            wins = soloStats.wins
+                                            top10s = soloStats.top10s
+                                        } else if (cmdArg2 === "duo") {
+                                            rounds = duoStats.roundsPlayed
+                                            kills = duoStats.kills
+                                            assists = duoStats.assists
+                                            damage = duoStats.damageDealt
+                                            headshotKills = duoStats.headshotKills
+                                            longestKill = duoStats.longestKill
+                                            wins = duoStats.wins
+                                            top10s = duoStats.top10s
+                                        } else if (cmdArg2 === "squad") {
+                                            rounds = squadStats.roundsPlayed
+                                            kills = squadStats.kills
+                                            assists = squadStats.assists
+                                            damage = squadStats.damageDealt
+                                            headshotKills = squadStats.headshotKills
+                                            longestKill = squadStats.longestKill
+                                            wins = squadStats.wins
+                                            top10s = squadStats.top10s
+                                        } else if (!cmdArg2) {
+                                            rounds = squadStats.roundsPlayed + duoStats.roundsPlayed + soloStats.roundsPlayed
+                                            kills = squadStats.kills + duoStats.kills + soloStats.kills
+                                            assists = squadStats.assists + duoStats.assists + soloStats.assists
+                                            damage = squadStats.damageDealt + duoStats.damageDealt + soloStats.damageDealt
+                                            headshotKills = squadStats.headshotKills + duoStats.headshotKills + soloStats.headshotKills
+                                            wins = squadStats.wins + duoStats.wins + soloStats.wins
+                                            top10s = squadStats.top10s + duoStats.top10s + soloStats.top10s
 
+                                            const soloLongest = playerSeason.attributes.gameModeStats.soloFPP.longestKill
+                                            const duoLongest = playerSeason.attributes.gameModeStats.duoFPP.longestKill
+                                            const squadLongest = playerSeason.attributes.gameModeStats.squadFPP.longestKill
+
+                                            longestKill = Math.max(soloLongest, duoLongest, squadLongest)
+                                        } else {
+                                            modeIsValid = false
+                                            console.log('Invalid mode')
+                                            msg.channel.send('Mitä?')
+                                        }
+
+                                        if (modeIsValid) {
+                                            longestKill = Math.round((longestKill + Number.EPSILON) * 100) / 100
+                                            damage = Math.round((damage + Number.EPSILON) * 100) / 100
+                                            console.log('Fetched data for ' + cmdArg1)
+                                            msg.channel.send(cmdArg1
+                                                + '\n\nPelit: ' + rounds
+                                                + '\nVoPet: ' + wins
+                                                + '\nTapot: ' + kills
+                                                + '\nHeadshot-tapot: ' + headshotKills
+                                                + "\nPisin tappo: " + longestKill + "m"
+                                                + "\nDamage: " + damage
+                                                + '\nAssistit: ' + assists
+                                                + '\nTop10: ' + top10s)
+                                        }
+                                    })
+                                    .catch(err => {
+                                        console.log('Error getting player season: ' + err.message)
+                                        msg.channel.send('Nyt hajos jotain.')
+                                        isReady = true
+                                    })
                             } else {
-                                modeIsValid = false
-                                console.log('Invalid game mode')
-                                msg.channel.send('Kirjota oikea moodi!')
+                                console.log('Player is null')
+                                msg.channel.send('Nyt tais tulla raja vastaan! Odota minuutti tai kaks.')
                                 isReady = true
                             }
-
-                            if (modeIsValid) {
-                                longestKill = Math.round((longestKill + Number.EPSILON) * 100) / 100
-                                msg.channel.send(cmdArg1
-                                    + '\n\nVoPet: ' + wins
-                                    + '\nTapot: ' + kills
-                                    + '\nHeadshot-tapot: ' + headshotKills
-                                    + "\nPisin tappo: " + longestKill + "m"
-                                    + "\nDamage: " + damage
-                                    + '\nAssistit: ' + assists
-                                    + '\nTop10: ' + top10s
-                                )
-                                isReady = true
-                            }
-
                         } else {
                             console.log('Invalid player name')
                             msg.channel.send('Kirjota pelaajan nimi!')
                         }
+                        isReady = true
                         break;
                     //Voice
-                    case 'poistu':
+                    case'poistu':
                         if (msg.member.voice.channel !== null) {
                             msg.member.voice.channel.leave()
                         } else {
@@ -172,7 +191,7 @@ bot.on('message', async msg => {
                         isReady = true
                         break;
                     //Kohtalo
-                    case 'niilo':
+                    case'niilo':
                         if (msg.member.voice.channel) {
                             msg.react('👍')
                             let rng = getRandom(5);
@@ -215,7 +234,7 @@ bot.on('message', async msg => {
                         isReady = true
                         break;
                     //Arvostelu
-                    case 'rate':
+                    case'rate':
                         if (msg.member.voice.channel) {
                             msg.react('👍')
                             let rate = getRandom(2)
@@ -237,7 +256,7 @@ bot.on('message', async msg => {
                         isReady = true
                         break;
                     //Viisaudet
-                    case 'viisaus':
+                    case'viisaus':
                         if (msg.member.voice.channel) {
                             msg.react('👍')
                             let rng = getRandom(5);
@@ -283,7 +302,7 @@ bot.on('message', async msg => {
                         break;
 
                     //Muuta mukavaa
-                    case 'loki':
+                    case'loki':
                         if (isLogging) {
                             isLogging = false
                             msg.channel.send('Lokin pito lopetettu.')
@@ -293,7 +312,7 @@ bot.on('message', async msg => {
                         }
                         isReady = true
                         break;
-                    case 'kalja':
+                    case'kalja':
                         if (msg.member.voice.channel) {
                             msg.react('🍻')
                             msg.member.voice.channel.join()
@@ -303,7 +322,7 @@ bot.on('message', async msg => {
                         }
                         isReady = true
                         break;
-                    case 'selvinpäin':
+                    case'selvinpäin':
                         if (msg.member.voice.channel) {
                             msg.react('👍')
                             msg.member.voice.channel.join()
@@ -313,7 +332,7 @@ bot.on('message', async msg => {
                         }
                         isReady = true
                         break;
-                    case 'viina':
+                    case'viina':
                         if (msg.member.voice.channel) {
                             msg.react('👍')
                             msg.member.voice.channel.join()
@@ -343,7 +362,7 @@ bot.on('message', async msg => {
                         }
                         isReady = true
                         break;
-                    case 'näin':
+                    case'näin':
                         if (msg.member.voice.channel) {
                             msg.react('👍')
                             let rate = getRandom(2)
@@ -377,9 +396,9 @@ bot.on('message', async msg => {
                             '\n>poistu                      Käskee Niilon pois voicesta paasaamasta' +
                             '\n>loki                    Aloittaa tai lopettaa lokiviestien lähetyksen' +
                             '\n>help                     Näyttää nämä komennot tässä näin' +
-                            '\n>pubg [pelaajan nimi] [moodi]                     Kertoo pubgin statseja meneillään olevasta seasonista.' +
+                            '\n>pubg [pelaajan nimi] [mode]                     Kertoo pubgin statseja meneillään olevasta seasonista.' +
                             '\n\nEsim. komento ">pubg Mehu_Mies squad" kertoo Mehumiehen tämän seasonin statsit squadissa. Kertoo vain FPP-pelien tulokset koska eihän niitä TPP-pelejä kukaan pelaa lol.' +
-                            ' Valittavat moodit: solo, duo, squad ja all.' +
+                            ' Valittavat modet: solo, duo, squad. Jos moden jättää tyhjäksi, palautetaan kaikkien pelimuotojen tiedot' +
                             '\n\nMuita komentoja:' +
                             '\n>meetöihin' +
                             '\n>syötkeksiä' +
@@ -410,7 +429,8 @@ bot.on('message', async msg => {
             }
         }
     }
-);
+)
+;
 
 function getRandom(i) {
     return Math.floor(Math.random() * i)
