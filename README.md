@@ -43,3 +43,7 @@ Bot based on finnish youtuber Niilo22. Mostly just for fun.
 >17.12.2020 Some functionalities with PUBG game data using pubg.js
 
 People can now retrieve data about their own game results from the bot.
+
+>18.12.2020 Modified pubg.js
+
+Pubg.js now retrieves lifetime stats instead of seasonal stats. Also added functions to change the log and lobby channel. Bot could now in theory be used in any Discord server.
