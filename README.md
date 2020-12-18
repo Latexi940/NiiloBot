@@ -1,4 +1,4 @@
-# NiiloBot
+# NiiloBot 
 <h3>Simple bot for Discord. Only works on my own server for now!</h3>
 
 Current functions:
