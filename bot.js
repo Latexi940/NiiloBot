@@ -3,7 +3,6 @@ const auth = require('./auth.json');
 const pubg = require('pubg.js');
 const shard = 'steam'
 const pubgClient = new pubg.Client(auth.pubgAPIKey, shard)
-let currentSeason = ""
 let logChannelID = ""
 let lobbyChannelID = ""
 
@@ -19,12 +18,7 @@ bot.login(auth.token)
     .catch(err => console.log(err))
 
 bot.on('ready', async () => {
-    currentSeason = await pubgClient.getCurrentSeason()
-        .then(currentSeason => {
-            console.log('Bot connected');
-            return currentSeason
-        })
-        .catch(err => console.log('Error getting current season:' + err.message))
+    console.log('Bot connected');
 });
 
 bot.on('voiceStateUpdate', (oldState, newState) => {
@@ -55,11 +49,11 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
 });
 
 bot.on('guildMemberAdd', member => {
-    if(lobbyChannelID) {
+    if (lobbyChannelID) {
         console.log(member.displayName + ' joined server')
         bot.channels.cache.get(lobbyChannelID).send('Tervetuloa ' + member.displayName + '!')
         bot.channels.cache.get(lobbyChannelID).send('Pistä viestiä @admin niin saatat saada oikeudet muillekkin kanaville.')
-    }else{
+    } else {
         console.log('No lobby channel set')
     }
 });
@@ -80,23 +74,27 @@ bot.on('message', async msg => {
             if (isReady) {
                 isReady = false
                 switch (cmd) {
-                    //PUBG
                     case 'pubg':
                         if (cmdArg1) {
-                            let modeIsValid = true
+                            let isPrintable = true
                             let player = await pubgClient.getPlayer({name: cmdArg1})
                                 .then(player => {
                                     return player
                                 })
-                                .catch(err => console.log('Error getting player: ' + err.message))
+                                .catch(err => {
+                                    console.log('Error getting player: ' + err.message)
+                                    if (err.status === 429) {
+                                        msg.channel.send('Odota ny minuutti ja koita sit uusiks!')
+                                    }
+                                })
                             if (player) {
                                 let playerID = JSON.stringify(player.id).replace(/"/g, '')
 
-                                await pubgClient.getPlayerSeason(playerID, currentSeason.id, shard)
-                                    .then(playerSeason => {
-                                        let soloStats = playerSeason.attributes.gameModeStats.soloFPP
-                                        let duoStats = playerSeason.attributes.gameModeStats.duoFPP
-                                        let squadStats = playerSeason.attributes.gameModeStats.squadFPP
+                                await pubgClient.getPlayerLifetime(playerID, shard)
+                                    .then(playerLifetime => {
+                                        let soloStats = playerLifetime.attributes.gameModeStats.soloFPP
+                                        let duoStats = playerLifetime.attributes.gameModeStats.duoFPP
+                                        let squadStats = playerLifetime.attributes.gameModeStats.squadFPP
 
                                         let rounds = "rounds"
                                         let kills = "kills"
@@ -106,6 +104,10 @@ bot.on('message', async msg => {
                                         let headshotKills = "headshotKills"
                                         let longestKill = "longestKill"
                                         let top10s = "top10s"
+                                        let dailyKills = "dailyKills"
+                                        let dailyWins = "dailyWins"
+                                        let weekylKills = "weeklyKills"
+                                        let weekylWins = "weekylWins"
 
                                         if (cmdArg2 === "solo") {
                                             rounds = soloStats.roundsPlayed
@@ -134,6 +136,21 @@ bot.on('message', async msg => {
                                             longestKill = squadStats.longestKill
                                             wins = squadStats.wins
                                             top10s = squadStats.top10s
+                                        } else if (cmdArg2 === "last") {
+                                            isPrintable = false
+                                            dailyKills = soloStats.dailyKills + duoStats.dailyKills + squadStats.dailyKills
+                                            dailyWins = soloStats.dailyWins + duoStats.dailyWins + squadStats.dailyWins
+                                            weekylKills = soloStats.weeklyKills + duoStats.weeklyKills + squadStats.weeklyKills
+                                            weekylWins = soloStats.weeklyWins + duoStats.weeklyWins + squadStats.weeklyWins
+
+                                            console.log('Fetched last weeks data for ' + cmdArg1)
+
+                                            msg.channel.send(cmdArg1
+                                                + '\n\nPäivän tapot: ' + dailyKills
+                                                + '\nPäivän voitot: ' + dailyWins
+                                                + '\nViikon tapot: ' + weekylKills
+                                                + '\nViikon voitot: ' + weekylWins
+                                            )
                                         } else if (!cmdArg2) {
                                             rounds = squadStats.roundsPlayed + duoStats.roundsPlayed + soloStats.roundsPlayed
                                             kills = squadStats.kills + duoStats.kills + soloStats.kills
@@ -143,18 +160,18 @@ bot.on('message', async msg => {
                                             wins = squadStats.wins + duoStats.wins + soloStats.wins
                                             top10s = squadStats.top10s + duoStats.top10s + soloStats.top10s
 
-                                            const soloLongest = playerSeason.attributes.gameModeStats.soloFPP.longestKill
-                                            const duoLongest = playerSeason.attributes.gameModeStats.duoFPP.longestKill
-                                            const squadLongest = playerSeason.attributes.gameModeStats.squadFPP.longestKill
+                                            const soloLongest = playerLifetime.attributes.gameModeStats.soloFPP.longestKill
+                                            const duoLongest = playerLifetime.attributes.gameModeStats.duoFPP.longestKill
+                                            const squadLongest = playerLifetime.attributes.gameModeStats.squadFPP.longestKill
 
                                             longestKill = Math.max(soloLongest, duoLongest, squadLongest)
                                         } else {
-                                            modeIsValid = false
+                                            isPrintable = false
                                             console.log('Invalid mode')
                                             msg.channel.send('Mitä?')
                                         }
 
-                                        if (modeIsValid) {
+                                        if (isPrintable) {
                                             longestKill = Math.round((longestKill + Number.EPSILON) * 100) / 100
                                             damage = Math.round((damage + Number.EPSILON) * 100) / 100
                                             console.log('Fetched data for ' + cmdArg1)
@@ -170,18 +187,16 @@ bot.on('message', async msg => {
                                         }
                                     })
                                     .catch(err => {
-                                        console.log('Error getting player season: ' + err.message)
-                                        msg.channel.send('Nyt hajos jotain.')
+                                        console.log('Error getting player stats: ' + err.message)
+                                        msg.channel.send('Nyt hajos jotain taas.')
                                         isReady = true
                                     })
                             } else {
                                 console.log('Player is null')
-                                msg.channel.send('Nyt tais tulla raja vastaan! Odota minuutti tai kaks.')
                                 isReady = true
                             }
                         } else {
                             console.log('Invalid player name')
-                            msg.channel.send('Kirjota pelaajan nimi!')
                         }
                         isReady = true
                         break;
@@ -198,7 +213,7 @@ bot.on('message', async msg => {
                     case'niilo':
                         if (msg.member.voice.channel) {
                             msg.react('👍')
-                            let rng = getRandom(5);
+                            let rng = getRandom(4);
                             if (rng === 0) {
                                 msg.member.voice.channel.join()
                                     .then(connection => connection.play('./media/eipaollu.mp3'))
@@ -214,11 +229,6 @@ bot.on('message', async msg => {
                             if (rng === 3) {
                                 msg.member.voice.channel.join()
                                     .then(connection => connection.play('./media/alalaitatallasta.mp3'))
-                            }
-
-                            if (rng === 5) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/mita.mp3'))
                             }
                         } else {
                             let rng = getRandom(4);
@@ -423,11 +433,11 @@ bot.on('message', async msg => {
                             '\n>rate                    Niilo antaa arvosanan' +
                             '\n>poistu                      Käskee Niilon pois voicesta paasaamasta' +
                             '\n>loki [set]                   Aloittaa tai lopettaa lokiviestien lähetyksen. Lisäkomennolla set voi asettaa kanavan, jollekka lokiviestit lähetetään.' +
-                            '\n>lobby                       Asettaa lobbykanavan.'+
+                            '\n>lobby                       Asettaa lobbykanavan.' +
                             '\n>help                     Näyttää nämä komennot tässä näin' +
                             '\n>pubg [pelaajan nimi] [mode]                     Kertoo pubgin statseja meneillään olevasta seasonista.' +
                             '\n\nEsim. komento ">pubg Mehu_Mies squad" kertoo Mehumiehen tämän seasonin statsit squadissa. Kertoo vain FPP-pelien tulokset koska eihän niitä TPP-pelejä kukaan pelaa lol.' +
-                            ' Valittavat modet: solo, duo, squad. Jos moden jättää tyhjäksi, palautetaan kaikkien pelimuotojen yhteenlasketut tiedot.' +
+                            ' Valittavat modet: solo, duo, squad ja last. Jos moden jättää tyhjäksi, palautetaan kaikkien pelimuotojen yhteenlasketut tiedot.' +
                             '\n\nMuita komentoja:' +
                             '\n>meetöihin' +
                             '\n>syötkeksiä' +
