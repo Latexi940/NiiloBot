@@ -4,6 +4,8 @@ const pubg = require('pubg.js');
 const shard = 'steam'
 const pubgClient = new pubg.Client(auth.pubgAPIKey, shard)
 let currentSeason = ""
+let logChannelID = ""
+let lobbyChannelID = ""
 
 const bot = new Discord.Client({
     token: auth.token,
@@ -11,7 +13,7 @@ const bot = new Discord.Client({
 });
 
 let isReady = true
-let isLogging = true
+let isLogging = false
 
 bot.login(auth.token)
     .catch(err => console.log(err))
@@ -33,10 +35,10 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
     if (isLogging) {
         if (oldChannel === null && newChannel !== null) {
             console.log(oldState.member.user.username + ' joined voice')
-            bot.channels.cache.get(auth.logID).send(oldState.member.user.username + ' saapui voiceen')
+            bot.channels.cache.get(logChannelID).send(oldState.member.user.username + ' saapui voiceen')
         } else if (newChannel === null) {
             console.log(oldState.member.user.username + ' left voice')
-            bot.channels.cache.get(auth.logID).send(oldState.member.user.username + ' lähti voicesta')
+            bot.channels.cache.get(logChannelID).send(oldState.member.user.username + ' lähti voicesta')
         }
     }
 
@@ -53,9 +55,13 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
 });
 
 bot.on('guildMemberAdd', member => {
-    console.log(member + 'joined server')
-    bot.channels.cache.get(auth.lobbyID).send('Tervetuloa ' + member + '!')
-    bot.channels.cache.get(auth.lobbyID).send('Pistä viestiä @admin niin saatat saada oikeudet muillekkin kanaville.')
+    if(lobbyChannelID) {
+        console.log(member.displayName + ' joined server')
+        bot.channels.cache.get(lobbyChannelID).send('Tervetuloa ' + member.displayName + '!')
+        bot.channels.cache.get(lobbyChannelID).send('Pistä viestiä @admin niin saatat saada oikeudet muillekkin kanaville.')
+    }else{
+        console.log('No lobby channel set')
+    }
 });
 
 bot.on('message', async msg => {
@@ -67,11 +73,10 @@ bot.on('message', async msg => {
             if (cmdArg2) {
                 cmdArg2.toLowerCase()
             }
-            let isFetchingDone = true
 
             let sender = msg.member.displayName
 
-            console.log('Command: ' + cmd + ' from: ' + sender + '. isReady=' + isReady)
+            console.log('Command: ' + cmd + ' ' + cmdArg1 + ' ' + cmdArg2 + ' from: ' + sender + '. isReady=' + isReady)
             if (isReady) {
                 isReady = false
                 switch (cmd) {
@@ -89,7 +94,6 @@ bot.on('message', async msg => {
 
                                 await pubgClient.getPlayerSeason(playerID, currentSeason.id, shard)
                                     .then(playerSeason => {
-                                        isFetchingDone = true
                                         let soloStats = playerSeason.attributes.gameModeStats.soloFPP
                                         let duoStats = playerSeason.attributes.gameModeStats.duoFPP
                                         let squadStats = playerSeason.attributes.gameModeStats.squadFPP
@@ -259,7 +263,7 @@ bot.on('message', async msg => {
                     case'viisaus':
                         if (msg.member.voice.channel) {
                             msg.react('👍')
-                            let rng = getRandom(5);
+                            let rng = getRandom(6);
                             if (rng === 0) {
                                 msg.member.voice.channel.join()
                                     .then(connection => connection.play('./media/mummo.mp3'))
@@ -270,7 +274,7 @@ bot.on('message', async msg => {
                             }
                             if (rng === 2) {
                                 msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/kelloon.mp3'))
+                                    .then(connection => connection.play('./media/koittakaajaksaa.mp3'))
                             }
                             if (rng === 3) {
                                 msg.member.voice.channel.join()
@@ -279,6 +283,10 @@ bot.on('message', async msg => {
                             if (rng === 4) {
                                 msg.member.voice.channel.join()
                                     .then(connection => connection.play('./media/pensselit.mp3'))
+                            }
+                            if (rng === 5) {
+                                msg.member.voice.channel.join()
+                                    .then(connection => connection.play('./media/kelloon.mp3'))
                             }
                         } else {
                             let rng = getRandom(5);
@@ -303,13 +311,33 @@ bot.on('message', async msg => {
 
                     //Muuta mukavaa
                     case'loki':
-                        if (isLogging) {
-                            isLogging = false
-                            msg.channel.send('Lokin pito lopetettu.')
+                        if (!cmdArg1) {
+                            if (logChannelID) {
+                                if (isLogging) {
+                                    isLogging = false
+                                    msg.channel.send('Lokin kirjaus lopetettu.')
+                                } else {
+                                    isLogging = true
+                                    msg.channel.send('Lokin kirjaus käynnistetty.')
+                                }
+                            } else {
+                                console.log('Log channel is null')
+                                console.log(cmdArg1)
+                                msg.channel.send('Aseta ensin lokikanava komennolla >loki set')
+                            }
+                        } else if (cmdArg1 === "set") {
+                            logChannelID = msg.channel.id
+                            console.log('Log channelID set to: ' + logChannelID)
+                            msg.channel.send('Tää on nyt lokikanava.')
                         } else {
-                            isLogging = true
-                            msg.channel.send('Lokin pito päällä.')
+                            msg.channel.send('Mitäs ihmettä?')
                         }
+                        isReady = true
+                        break;
+                    case'lobby':
+                        lobbyChannelID = msg.channel.id
+                        console.log('Lobby channelID set to: ' + lobbyChannelID)
+                        msg.channel.send('Tää on nyt lobbykanava.')
                         isReady = true
                         break;
                     case'kalja':
@@ -390,15 +418,16 @@ bot.on('message', async msg => {
                         break;
                     case'help':
                         msg.channel.send('NIILOBOT 0.3' +
-                            '\n\n>niilo (kysymys)                       Niilo vastaa kysymykseen' +
+                            '\n\n>niilo                      Niilo vastaa kysymykseen' +
                             '\n>viisaus                     Niilo kertoo elämänviisauksiaan' +
                             '\n>rate                    Niilo antaa arvosanan' +
                             '\n>poistu                      Käskee Niilon pois voicesta paasaamasta' +
-                            '\n>loki                    Aloittaa tai lopettaa lokiviestien lähetyksen' +
+                            '\n>loki [set]                   Aloittaa tai lopettaa lokiviestien lähetyksen. Lisäkomennolla set voi asettaa kanavan, jollekka lokiviestit lähetetään.' +
+                            '\n>lobby                       Asettaa lobbykanavan.'+
                             '\n>help                     Näyttää nämä komennot tässä näin' +
                             '\n>pubg [pelaajan nimi] [mode]                     Kertoo pubgin statseja meneillään olevasta seasonista.' +
                             '\n\nEsim. komento ">pubg Mehu_Mies squad" kertoo Mehumiehen tämän seasonin statsit squadissa. Kertoo vain FPP-pelien tulokset koska eihän niitä TPP-pelejä kukaan pelaa lol.' +
-                            ' Valittavat modet: solo, duo, squad. Jos moden jättää tyhjäksi, palautetaan kaikkien pelimuotojen tiedot' +
+                            ' Valittavat modet: solo, duo, squad. Jos moden jättää tyhjäksi, palautetaan kaikkien pelimuotojen yhteenlasketut tiedot.' +
                             '\n\nMuita komentoja:' +
                             '\n>meetöihin' +
                             '\n>syötkeksiä' +
