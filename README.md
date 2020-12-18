@@ -15,7 +15,7 @@ Current functions:
 
 <b>>help</b> &emsp;&emsp;Shows all commands
 
-<b>>pubg [username] [mode]  </b>  &emsp; &emsp; Shows stats from current PUBG season. Modes: solo, duo, squad and all. 
+<b>>pubg [username] [mode]  </b>  &emsp; &emsp; Shows stats from current PUBG season. Modes: solo, duo, squad and last. If no mode is set, combined lifetime stats are shown. 
 
 
 Other commands:

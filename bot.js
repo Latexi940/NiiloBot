@@ -84,9 +84,13 @@ bot.on('message', async msg => {
                                 .catch(err => {
                                     console.log('Error getting player: ' + err.message)
                                     if (err.status === 429) {
-                                        msg.channel.send('Odota ny minuutti ja koita sit uusiks!')
+                                        msg.channel.send('Odotas ny hetki ja koita sit uusiks!')
+                                    }
+                                    if (err.status === 404) {
+                                        msg.channel.send('Eipä ollukkaan semmosta pelaajaa olemassa ollenkaan!')
                                     }
                                 })
+
                             if (player) {
                                 let playerID = JSON.stringify(player.id).replace(/"/g, '')
 
@@ -197,6 +201,7 @@ bot.on('message', async msg => {
                             }
                         } else {
                             console.log('Invalid player name')
+                            msg.channel.send('Kirjotas ny joku pelaajanimi siihe perään')
                         }
                         isReady = true
                         break;
@@ -336,6 +341,7 @@ bot.on('message', async msg => {
                                 msg.channel.send('Aseta ensin lokikanava komennolla >loki set')
                             }
                         } else if (cmdArg1 === "set") {
+                            isLogging = true
                             logChannelID = msg.channel.id
                             console.log('Log channelID set to: ' + logChannelID)
                             msg.channel.send('Tää on nyt lokikanava.')
@@ -427,7 +433,7 @@ bot.on('message', async msg => {
                         isReady = true
                         break;
                     case'help':
-                        msg.channel.send('NIILOBOT 0.3' +
+                        msg.channel.send('NIILOBOT 0.3.2' +
                             '\n\n>niilo                      Niilo vastaa kysymykseen' +
                             '\n>viisaus                     Niilo kertoo elämänviisauksiaan' +
                             '\n>rate                    Niilo antaa arvosanan' +
