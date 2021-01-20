@@ -5,6 +5,10 @@ const shard = 'steam'
 const pubgClient = new pubg.Client(auth.pubgAPIKey, shard)
 let logChannelID = ""
 let lobbyChannelID = ""
+let greeting = 'Pistä viestiä @admin niin saatat saada oikeudet muillekkin kanaville.'
+let timezoneDifferenceToUTC = 2
+let isAllowedOnVoice = true
+let connection = null
 
 const bot = new Discord.Client({
     token: auth.token,
@@ -27,11 +31,11 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
     let newChannel = newState.channel
 
     if (isLogging) {
-        if (oldChannel === null && newChannel !== null) {
-            console.log(oldState.member.user.username + ' joined voice')
+        if (!oldChannel && newChannel) {
+            console.log(getFormattedTime()+ " " + oldState.member.user.username + ' joined voice')
             bot.channels.cache.get(logChannelID).send(oldState.member.user.username + ' saapui voiceen')
-        } else if (newChannel === null) {
-            console.log(oldState.member.user.username + ' left voice')
+        } else if (!newChannel) {
+            console.log(getFormattedTime()+ " " + oldState.member.user.username + ' left voice')
             bot.channels.cache.get(logChannelID).send(oldState.member.user.username + ' lähti voicesta')
         }
     }
@@ -43,16 +47,17 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
         setTimeout(() => {
             if (oldState.channel.members.size <= 1) {
                 oldState.channel.leave()
+                connection = null
                 console.log('Leaving voice channel')
             }
-        }, 3000);
+        }, 2000);
 });
 
 bot.on('guildMemberAdd', member => {
     if (lobbyChannelID) {
         console.log(member.displayName + ' joined server')
         bot.channels.cache.get(lobbyChannelID).send('Tervetuloa ' + member.displayName + '!')
-        bot.channels.cache.get(lobbyChannelID).send('Pistä viestiä @admin niin saatat saada oikeudet muillekkin kanaville.')
+        bot.channels.cache.get(lobbyChannelID).send(greeting)
     } else {
         console.log('No lobby channel set')
     }
@@ -70,7 +75,14 @@ bot.on('message', async msg => {
 
             let sender = msg.member.displayName
 
-            console.log('Command: ' + cmd + ' ' + cmdArg1 + ' ' + cmdArg2 + ' from: ' + sender + '. isReady=' + isReady)
+            console.log(getFormattedTime()+ ' Command: ' + cmd + ' ' + cmdArg1 + ' ' + cmdArg2 + ' from: ' + sender + '. isReady=' + isReady + ' connection=' + connection)
+
+
+            if(!connection && msg.member.voice.channel && isAllowedOnVoice){
+                await msg.member.voice.channel.join()
+                    .then(c => connection = c)
+            }
+
             if (isReady) {
                 isReady = false
                 switch (cmd) {
@@ -84,7 +96,7 @@ bot.on('message', async msg => {
                                 .catch(err => {
                                     console.log('Error getting player: ' + err.message)
                                     if (err.status === 429) {
-                                        msg.channel.send('Odotas ny hetki ja koita sit uusiks!')
+                                        msg.channel.send('Odotas ny hetki ja koita sit uusiks! Pubgin servut ei salli ku 10 pyyntöä per minuutti.')
                                     }
                                     if (err.status === 404) {
                                         msg.channel.send('Eipä ollukkaan semmosta pelaajaa olemassa ollenkaan!')
@@ -207,33 +219,37 @@ bot.on('message', async msg => {
                         break;
                     //Voice
                     case'poistu':
-                        if (msg.member.voice.channel !== null) {
+                        if (connection) {
                             msg.member.voice.channel.leave()
+                            isAllowedOnVoice = false
                         } else {
                             msg.channel.send('Poistu itte ' + sender + '!')
                         }
                         isReady = true
                         break;
-                    //Kohtalo
-                    case'niilo':
+                    case'voiceen':
                         if (msg.member.voice.channel) {
-                            msg.react('👍')
-                            let rng = getRandom(4);
+                            msg.member.voice.channel.join()
+                                .then(c => connection = c)
+                            isAllowedOnVoice = true
+                        } else {
+                            msg.channel.send('Mee itte voiceen ' + sender + '!')
+                        }
+                        isReady = true
+                        break;
+                    //Kohtalo
+                    case'onko':
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('👍')
+                            let rng = getRandom(3);
                             if (rng === 0) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/eipaollu.mp3'))
+                                connection.play('./media/eipaollu.mp3')
                             }
                             if (rng === 1) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/on.mp3'))
+                                connection.play('./media/on.mp3')
                             }
                             if (rng === 2) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/eiketaankiinnosta.mp3'))
-                            }
-                            if (rng === 3) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/alalaitatallasta.mp3'))
+                                connection.play('./media/eiketaankiinnosta.mp3')
                             }
                         } else {
                             let rng = getRandom(4);
@@ -254,15 +270,17 @@ bot.on('message', async msg => {
                         break;
                     //Arvostelu
                     case'rate':
-                        if (msg.member.voice.channel) {
-                            msg.react('👍')
-                            let rate = getRandom(2)
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('👍')
+                            let rate = getRandom(3)
                             if (rate === 0) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/nolla.mp3'))
-                            } else {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/viis.mp3'))
+                                connection.play('./media/nolla.mp3')
+                            }
+                            if (rate === 1) {
+                                connection.play('./media/kolme.mp3')
+                            }
+                            if (rate === 2) {
+                                connection.play('./media/viisviis.mp3')
                             }
                         } else {
                             let rate = getRandom(2)
@@ -276,32 +294,35 @@ bot.on('message', async msg => {
                         break;
                     //Viisaudet
                     case'viisaus':
-                        if (msg.member.voice.channel) {
-                            msg.react('👍')
-                            let rng = getRandom(6);
+                        if (connection  && isAllowedOnVoice) {
+                            await msg.react('👍')
+                            let rng = getRandom(9);
                             if (rng === 0) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/mummo.mp3'))
+                                connection.play('./media/mummo.mp3')
                             }
                             if (rng === 1) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/eiainaviinaa.mp3'))
+                                connection.play('./media/eiainaviinaa.mp3')
                             }
                             if (rng === 2) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/koittakaajaksaa.mp3'))
+                                connection.play('./media/koittakaajaksaa.mp3')
                             }
                             if (rng === 3) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/joulu.mp3'))
+                                connection.play('./media/pensselit.mp3')
                             }
                             if (rng === 4) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/pensselit.mp3'))
+                                connection.play('./media/kelloon.mp3')
                             }
                             if (rng === 5) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/kelloon.mp3'))
+                                connection.play('./media/ennakkoluulo.mp3')
+                            }
+                            if (rng === 6) {
+                                connection.play('./media/kuu.mp3')
+                            }
+                            if (rng === 7) {
+                                connection.play('./media/painovoima.mp3')
+                            }
+                            if (rng === 8) {
+                                connection.play('./media/polku.mp3')
                             }
                         } else {
                             let rng = getRandom(5);
@@ -345,6 +366,12 @@ bot.on('message', async msg => {
                             logChannelID = msg.channel.id
                             console.log('Log channelID set to: ' + logChannelID)
                             msg.channel.send('Tää on nyt lokikanava.')
+                        } else if (cmdArg1 === "status") {
+                            if (isLogging) {
+                                msg.channel.send('Lokin keräys on päällä.')
+                            } else {
+                                msg.channel.send('Lokin keräys ei ole päällä')
+                            }
                         } else {
                             msg.channel.send('Mitäs ihmettä?')
                         }
@@ -357,65 +384,58 @@ bot.on('message', async msg => {
                         isReady = true
                         break;
                     case'kalja':
-                        if (msg.member.voice.channel) {
-                            msg.react('🍻')
-                            msg.member.voice.channel.join()
-                                .then(connection => connection.play('./media/kaljaviina.mp3'))
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('🍻')
+                            connection.play('./media/kaljaviina.mp3')
                         } else {
                             msg.channel.send('Kalja, kalja, kalja viina!')
                         }
                         isReady = true
                         break;
                     case'selvinpäin':
-                        if (msg.member.voice.channel) {
-                            msg.react('👍')
-                            msg.member.voice.channel.join()
-                                .then(connection => connection.play('./media/mukavampaa.mp3'))
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('👍')
+                            connection.play('./media/mukavampaa.mp3')
                         } else {
                             msg.channel.send('Mikä sen mukavampaa kun olla selvinpäin tietokoneella pelkästään.')
                         }
                         isReady = true
                         break;
-                    case'viina':
-                        if (msg.member.voice.channel) {
-                            msg.react('👍')
-                            msg.member.voice.channel.join()
-                                .then(connection => connection.play('./media/otaviinaa.mp3'))
-                        } else {
-                            msg.channel.send('Ota viinaa!')
-                        }
-                        isReady = true
-                        break;
                     case'meetöihin':
-                        if (msg.member.voice.channel) {
-                            msg.react('🤬')
-                            msg.member.voice.channel.join()
-                                .then(connection => connection.play('./media/meneitte.mp3'))
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('🤬')
+                            connection.play('./media/meneitte.mp3')
                         } else {
                             msg.channel.send('Mee itte saatana töihin ' + sender)
                         }
                         isReady = true
                         break;
                     case'syötkeksiä':
-                        if (msg.member.voice.channel) {
-                            msg.react('😠')
-                            msg.member.voice.channel.join()
-                                .then(connection => connection.play('./media/keksi.mp3'))
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('😠')
+                            connection.play('./media/keksi.mp3')
                         } else {
                             msg.channel.send('En oo syöny keksiä!')
                         }
                         isReady = true
                         break;
+                    case'nukkunu':
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('😴')
+                            connection.play('./media/enoonukkunu.mp3')
+                        } else {
+                            msg.channel.send('En oo nukkunu yhtää. Eiku nukuinki nii saatanasti!')
+                        }
+                        isReady = true
+                        break;
                     case'näin':
-                        if (msg.member.voice.channel) {
-                            msg.react('👍')
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('👍')
                             let rate = getRandom(2)
                             if (rate === 0) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/asiaonnain.mp3'))
+                                connection.play('./media/asiaonnain.mp3')
                             } else {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/seonnain.mp3'))
+                                connection.play('./media/seonnain.mp3')
                             }
                         } else {
                             msg.channel.send('Näin!')
@@ -423,48 +443,122 @@ bot.on('message', async msg => {
                         isReady = true
                         break;
                     case'huijaus':
-                        if (msg.member.voice.channel) {
-                            msg.react('👍')
-                            msg.member.voice.channel.join()
-                                .then(connection => connection.play('./media/huijaus.mp3'))
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('👍')
+                            connection.play('./media/huijaus.mp3')
                         } else {
                             msg.channel.send('Huijaus on käynnissää')
                         }
                         isReady = true
                         break;
+                    case'blackvelvet':
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('👍')
+                            connection.play('./media/blackvelvet.mp3')
+                        } else {
+                            msg.channel.send('Bläääk velveeet')
+                        }
+                        isReady = true
+                        break;
+                    case'noniin':
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('👍')
+                            connection.play('./media/noniin.mp3')
+                        } else {
+                            msg.channel.send('Noniiin voi vittu!')
+                        }
+                        isReady = true
+                        break;
+                    case'huhhuh':
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('👍')
+                            connection.play('./media/huhhuh.mp3')
+                        } else {
+                            msg.channel.send('Huhhuh ja vielä kerran huhhuh')
+                        }
+                        isReady = true
+                        break;
+                    case'eiaikaa':
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('⏲️')
+                            connection.play('./media/eiaikaa.mp3')
+                        } else {
+                            msg.channel.send('Eei mul oo aikaa')
+                        }
+                        isReady = true
+                        break;
+                    case'eipelata':
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('🎮')
+                            connection.play('./media/eipelata.mp3')
+                        } else {
+                            msg.channel.send('Ei sit pelata jos ei pelata ni ei sit pelata.')
+                        }
+                        isReady = true
+                        break;
+                    case'happy':
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('😄')
+                            connection.play('./media/happy.mp3')
+                        } else {
+                            msg.channel.send('I am happy, I am drinking beer!')
+                        }
+                        isReady = true
+                        break;
+                    case'narukaulaan':
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('💀')
+                            connection.play('./media/narukaulaan.mp3')
+                        } else {
+                            msg.channel.send('Pistä naru kaulaan ja hyppää kaivoon.')
+                        }
+                        isReady = true
+                        break;
+                    case'nukkuun':
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('😴')
+                            connection.play('./media/nukkuun.mp3')
+                        } else {
+                            msg.channel.send('Kaksyt yli kolme mä heräsin ja päätin mennä nukkuu.')
+                        }
+                        isReady = true
+                        break;
                     case'help':
-                        msg.channel.send('NIILOBOT 0.3.2' +
-                            '\n\n>niilo                      Niilo vastaa kysymykseen' +
-                            '\n>viisaus                     Niilo kertoo elämänviisauksiaan' +
-                            '\n>rate                    Niilo antaa arvosanan' +
-                            '\n>poistu                      Käskee Niilon pois voicesta paasaamasta' +
-                            '\n>loki [set]                   Aloittaa tai lopettaa lokiviestien lähetyksen. Lisäkomennolla set voi asettaa kanavan, jollekka lokiviestit lähetetään.' +
-                            '\n>lobby                       Asettaa lobbykanavan.' +
-                            '\n>help                     Näyttää nämä komennot tässä näin' +
-                            '\n>pubg [pelaajan nimi] [mode]                     Kertoo pubgin statseja meneillään olevasta seasonista.' +
-                            '\n\nEsim. komento ">pubg Mehu_Mies squad" kertoo Mehumiehen tämän seasonin statsit squadissa. Kertoo vain FPP-pelien tulokset koska eihän niitä TPP-pelejä kukaan pelaa lol.' +
+                        msg.channel.send('NIILOBOT 0.4.0' +
+                            '\n\n>onko                                 Niilo vastaa kysymykseen' +
+                            '\n>viisaus                                 Niilo kertoo elämänviisauksiaan' +
+                            '\n>rate                                    Niilo antaa arvosanan' +
+                            '\n>poistu                                  Käskee Niilon pois voicesta paasaamasta' +
+                            '\n>voiceen                                 Kutsuu Niilon takaisin voiceen' +
+                            '\n>loki [set/status]                       Aloittaa tai lopettaa lokiviestien lähetyksen. Lisäkomennolla voi asettaa lokikanavan tai tarkistaa lokin tilan. Loki seuraa voicen aktiivisuutta.' +
+                            '\n>lobby                                   Asettaa lobbykanavan. Niilo tervehtii uusia tulokkaita.' +
+                            '\n>help                                    Näyttää nämä komennot tässä näin' +
+                            '\n>pubg [pelaajan nimi] [mode]             Kertoo pubgin statseja.' +
+                            '\n\nEsim. komento ">pubg Mehu_Mies squad"  kertoo Mehumiehen statsit squadissa. Kertoo vain FPP-pelien tulokset koska eihän niitä TPP-pelejä kukaan pelaa lol.' +
                             ' Valittavat modet: solo, duo, squad ja last. Jos moden jättää tyhjäksi, palautetaan kaikkien pelimuotojen yhteenlasketut tiedot.' +
                             '\n\nMuita komentoja:' +
                             '\n>meetöihin' +
                             '\n>syötkeksiä' +
                             '\n>huijaus' +
+                            '\n>blackvelvet' +
                             '\n>näin' +
-                            '\n>kalja' +
+                            '\n>nukkunu' +
+                            '\n>nukkuun' +
+                            '\n>noniin' +
+                            '\n>huhhuh' +
                             '\n>selvinpäin' +
-                            '\n>viina'
+                            '\n>kalja' +
+                            '\n>eiaikaa' +
+                            '\n>eipelata' +
+                            '\n>happy' +
+                            '\n>narukaulaan'
                         )
                         isReady = true
                         break;
                     default:
-                        if (msg.member.voice.channel) {
-                            let rate = getRandom(2)
-                            if (rate === 0) {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/mita.mp3'))
-                            } else {
-                                msg.member.voice.channel.join()
-                                    .then(connection => connection.play('./media/mitavittua.mp3'))
-                            }
+                        if (connection && isAllowedOnVoice) {
+                            await msg.react('❓')
+                            connection.play('./media/mitavittua.mp3')
                         } else {
                             msg.channel.send('Mitä vittua tää ny meinaa ' + sender + '?')
                         }
@@ -479,4 +573,23 @@ bot.on('message', async msg => {
 
 function getRandom(i) {
     return Math.floor(Math.random() * i)
+}
+
+function getFormattedTime(){
+    let time = new Date()
+
+    let year = time.getFullYear()
+    let month = time.getMonth() +1
+    let day = time.getDate()
+    let hour = time.getHours() + timezoneDifferenceToUTC
+    let min = time.getMinutes()
+    let sec = time.getSeconds()
+
+    month = (month < 10 ? "0" : "") + month;
+    day = (day < 10 ? "0" : "") + day;
+    hour = (hour < 10 ? "0" : "") + hour;
+    min = (min < 10 ? "0" : "") + min;
+    sec = (sec < 10 ? "0" : "") + sec;
+
+    return day+"."+month+"."+year+" "+hour+":"+min+":"+sec
 }
