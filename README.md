@@ -1,9 +1,9 @@
 # NiiloBot
-<h3>Simple bot for Discord. Mostly just for jokes based on finnish youtuber Niilo22, but also has some functionality with PlayerUnknowns Battlegrounds API.
+<h4>Simple bot for Discord. Mostly just for jokes based on finnish youtuber Niilo22, but also has some functionality with PlayerUnknowns Battlegrounds API.
 
-Only works on my own server for now!</h3>
+Only works on my own server for now!</h4>
 
-<h4>Current functions:</h4>
+<b>Current commands:</b>
 
 <b>>onko (question)</b> &emsp;&emsp;Answers your question like a magic 8-ball
 
@@ -21,8 +21,7 @@ Only works on my own server for now!</h3>
 
 <b>>pubg [username] [mode]  </b>  &emsp; &emsp; Shows stats from current PUBG season. Modes: solo, duo, squad and last. If no mode is set, combined lifetime stats are shown. 
 
-
-Other commands:
+Just funny voice stuff:
 
 <b>>meetöihin</b>
 
@@ -54,9 +53,7 @@ Other commands:
 
 <b>>narukaulaan</b>
 
-<b>>nukkuun</b>
-
-<h1>Changelog</h1>
+<h2>Changelog</h2>
 
 >16.12.2020 Initial commit
 
