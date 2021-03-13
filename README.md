@@ -1,7 +1,5 @@
 # NiiloBot
-<h4>Simple bot for Discord. Mostly just for jokes based on finnish youtuber Niilo22, but also has some functionality with PlayerUnknowns Battlegrounds API.
-
-Only works on my own server for now!</h4>
+<h4>Simple bot for Discord. Mostly just for jokes based on finnish youtuber Niilo22, but also has some functionality with PlayerUnknowns Battlegrounds API. Only works on my own server for now!</h4>
 
 <b>Current commands:</b>
 
@@ -70,3 +68,7 @@ Pubg.js now retrieves lifetime stats instead of seasonal stats. Also added funct
 >20.1.2021 Some changes in code and added more basic sound commands
 
 Added timestamps to console logs. Cleaner code. Lot more life advice and other sounds. Now bot can also be banned from voice channel and used with text only.
+
+>13.3.2021 Updated packages and formatted some code
+
+No new stuff

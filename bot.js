@@ -8,7 +8,7 @@ let lobbyChannelID = ""
 let greeting = 'Pistä viestiä @admin niin saatat saada oikeudet muillekkin kanaville.'
 let timezoneDifferenceToUTC = 2
 let isAllowedOnVoice = true
-let connection = null
+let voiceConnection = null
 
 const bot = new Discord.Client({
     token: auth.token,
@@ -32,10 +32,10 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
 
     if (isLogging) {
         if (!oldChannel && newChannel) {
-            console.log(getFormattedTime()+ " " + oldState.member.user.username + ' joined voice')
+            console.log(getFormattedTime() + " " + oldState.member.user.username + ' joined voice')
             bot.channels.cache.get(logChannelID).send(oldState.member.user.username + ' saapui voiceen')
         } else if (!newChannel) {
-            console.log(getFormattedTime()+ " " + oldState.member.user.username + ' left voice')
+            console.log(getFormattedTime() + " " + oldState.member.user.username + ' left voice')
             bot.channels.cache.get(logChannelID).send(oldState.member.user.username + ' lähti voicesta')
         }
     }
@@ -47,7 +47,7 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
         setTimeout(() => {
             if (oldState.channel.members.size <= 1) {
                 oldState.channel.leave()
-                connection = null
+                voiceConnection = null
                 console.log('Leaving voice channel')
             }
         }, 2000);
@@ -55,7 +55,7 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
 
 bot.on('guildMemberAdd', member => {
     if (lobbyChannelID) {
-        console.log(member.displayName + ' joined server')
+        console.log(getFormattedTime() + " " + member.displayName + ' joined server')
         bot.channels.cache.get(lobbyChannelID).send('Tervetuloa ' + member.displayName + '!')
         bot.channels.cache.get(lobbyChannelID).send(greeting)
     } else {
@@ -75,12 +75,12 @@ bot.on('message', async msg => {
 
             let sender = msg.member.displayName
 
-            console.log(getFormattedTime()+ ' Command: ' + cmd + ' ' + cmdArg1 + ' ' + cmdArg2 + ' from: ' + sender + '. isReady=' + isReady + ' connection=' + connection)
+            console.log(getFormattedTime() + ' Command: ' + cmd + ' ' + cmdArg1 + ' ' + cmdArg2 + ' from: ' + sender + '. isReady=' + isReady + ' voiceConnection=' + voiceConnection)
 
 
-            if(!connection && msg.member.voice.channel && isAllowedOnVoice){
+            if (!voiceConnection && msg.member.voice.channel && isAllowedOnVoice) {
                 await msg.member.voice.channel.join()
-                    .then(c => connection = c)
+                    .then(c => voiceConnection = c)
             }
 
             if (isReady) {
@@ -219,7 +219,7 @@ bot.on('message', async msg => {
                         break;
                     //Voice
                     case'poistu':
-                        if (connection) {
+                        if (voiceConnection) {
                             msg.member.voice.channel.leave()
                             isAllowedOnVoice = false
                         } else {
@@ -230,7 +230,7 @@ bot.on('message', async msg => {
                     case'voiceen':
                         if (msg.member.voice.channel) {
                             msg.member.voice.channel.join()
-                                .then(c => connection = c)
+                                .then(c => voiceConnection = c)
                             isAllowedOnVoice = true
                         } else {
                             msg.channel.send('Mee itte voiceen ' + sender + '!')
@@ -239,17 +239,17 @@ bot.on('message', async msg => {
                         break;
                     //Kohtalo
                     case'onko':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('👍')
                             let rng = getRandom(3);
                             if (rng === 0) {
-                                connection.play('./media/eipaollu.mp3')
+                                voiceConnection.play('./media/eipaollu.mp3')
                             }
                             if (rng === 1) {
-                                connection.play('./media/on.mp3')
+                                voiceConnection.play('./media/on.mp3')
                             }
                             if (rng === 2) {
-                                connection.play('./media/eiketaankiinnosta.mp3')
+                                voiceConnection.play('./media/eiketaankiinnosta.mp3')
                             }
                         } else {
                             let rng = getRandom(4);
@@ -270,17 +270,17 @@ bot.on('message', async msg => {
                         break;
                     //Arvostelu
                     case'rate':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('👍')
                             let rate = getRandom(3)
                             if (rate === 0) {
-                                connection.play('./media/nolla.mp3')
+                                voiceConnection.play('./media/nolla.mp3')
                             }
                             if (rate === 1) {
-                                connection.play('./media/kolme.mp3')
+                                voiceConnection.play('./media/kolme.mp3')
                             }
                             if (rate === 2) {
-                                connection.play('./media/viisviis.mp3')
+                                voiceConnection.play('./media/viisviis.mp3')
                             }
                         } else {
                             let rate = getRandom(2)
@@ -294,35 +294,35 @@ bot.on('message', async msg => {
                         break;
                     //Viisaudet
                     case'viisaus':
-                        if (connection  && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('👍')
                             let rng = getRandom(9);
                             if (rng === 0) {
-                                connection.play('./media/mummo.mp3')
+                                voiceConnection.play('./media/mummo.mp3')
                             }
                             if (rng === 1) {
-                                connection.play('./media/eiainaviinaa.mp3')
+                                voiceConnection.play('./media/eiainaviinaa.mp3')
                             }
                             if (rng === 2) {
-                                connection.play('./media/koittakaajaksaa.mp3')
+                                voiceConnection.play('./media/koittakaajaksaa.mp3')
                             }
                             if (rng === 3) {
-                                connection.play('./media/pensselit.mp3')
+                                voiceConnection.play('./media/pensselit.mp3')
                             }
                             if (rng === 4) {
-                                connection.play('./media/kelloon.mp3')
+                                voiceConnection.play('./media/kelloon.mp3')
                             }
                             if (rng === 5) {
-                                connection.play('./media/ennakkoluulo.mp3')
+                                voiceConnection.play('./media/ennakkoluulo.mp3')
                             }
                             if (rng === 6) {
-                                connection.play('./media/kuu.mp3')
+                                voiceConnection.play('./media/kuu.mp3')
                             }
                             if (rng === 7) {
-                                connection.play('./media/painovoima.mp3')
+                                voiceConnection.play('./media/painovoima.mp3')
                             }
                             if (rng === 8) {
-                                connection.play('./media/polku.mp3')
+                                voiceConnection.play('./media/polku.mp3')
                             }
                         } else {
                             let rng = getRandom(5);
@@ -384,58 +384,58 @@ bot.on('message', async msg => {
                         isReady = true
                         break;
                     case'kalja':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('🍻')
-                            connection.play('./media/kaljaviina.mp3')
+                            voiceConnection.play('./media/kaljaviina.mp3')
                         } else {
                             msg.channel.send('Kalja, kalja, kalja viina!')
                         }
                         isReady = true
                         break;
                     case'selvinpäin':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('👍')
-                            connection.play('./media/mukavampaa.mp3')
+                            voiceConnection.play('./media/mukavampaa.mp3')
                         } else {
                             msg.channel.send('Mikä sen mukavampaa kun olla selvinpäin tietokoneella pelkästään.')
                         }
                         isReady = true
                         break;
                     case'meetöihin':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('🤬')
-                            connection.play('./media/meneitte.mp3')
+                            voiceConnection.play('./media/meneitte.mp3')
                         } else {
                             msg.channel.send('Mee itte saatana töihin ' + sender)
                         }
                         isReady = true
                         break;
                     case'syötkeksiä':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('😠')
-                            connection.play('./media/keksi.mp3')
+                            voiceConnection.play('./media/keksi.mp3')
                         } else {
                             msg.channel.send('En oo syöny keksiä!')
                         }
                         isReady = true
                         break;
                     case'nukkunu':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('😴')
-                            connection.play('./media/enoonukkunu.mp3')
+                            voiceConnection.play('./media/enoonukkunu.mp3')
                         } else {
                             msg.channel.send('En oo nukkunu yhtää. Eiku nukuinki nii saatanasti!')
                         }
                         isReady = true
                         break;
                     case'näin':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('👍')
                             let rate = getRandom(2)
                             if (rate === 0) {
-                                connection.play('./media/asiaonnain.mp3')
+                                voiceConnection.play('./media/asiaonnain.mp3')
                             } else {
-                                connection.play('./media/seonnain.mp3')
+                                voiceConnection.play('./media/seonnain.mp3')
                             }
                         } else {
                             msg.channel.send('Näin!')
@@ -443,81 +443,81 @@ bot.on('message', async msg => {
                         isReady = true
                         break;
                     case'huijaus':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('👍')
-                            connection.play('./media/huijaus.mp3')
+                            voiceConnection.play('./media/huijaus.mp3')
                         } else {
                             msg.channel.send('Huijaus on käynnissää')
                         }
                         isReady = true
                         break;
                     case'blackvelvet':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('👍')
-                            connection.play('./media/blackvelvet.mp3')
+                            voiceConnection.play('./media/blackvelvet.mp3')
                         } else {
                             msg.channel.send('Bläääk velveeet')
                         }
                         isReady = true
                         break;
                     case'noniin':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('👍')
-                            connection.play('./media/noniin.mp3')
+                            voiceConnection.play('./media/noniin.mp3')
                         } else {
                             msg.channel.send('Noniiin voi vittu!')
                         }
                         isReady = true
                         break;
                     case'huhhuh':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('👍')
-                            connection.play('./media/huhhuh.mp3')
+                            voiceConnection.play('./media/huhhuh.mp3')
                         } else {
                             msg.channel.send('Huhhuh ja vielä kerran huhhuh')
                         }
                         isReady = true
                         break;
                     case'eiaikaa':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('⏲️')
-                            connection.play('./media/eiaikaa.mp3')
+                            voiceConnection.play('./media/eiaikaa.mp3')
                         } else {
                             msg.channel.send('Eei mul oo aikaa')
                         }
                         isReady = true
                         break;
                     case'eipelata':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('🎮')
-                            connection.play('./media/eipelata.mp3')
+                            voiceConnection.play('./media/eipelata.mp3')
                         } else {
                             msg.channel.send('Ei sit pelata jos ei pelata ni ei sit pelata.')
                         }
                         isReady = true
                         break;
                     case'happy':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('😄')
-                            connection.play('./media/happy.mp3')
+                            voiceConnection.play('./media/happy.mp3')
                         } else {
                             msg.channel.send('I am happy, I am drinking beer!')
                         }
                         isReady = true
                         break;
                     case'narukaulaan':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('💀')
-                            connection.play('./media/narukaulaan.mp3')
+                            voiceConnection.play('./media/narukaulaan.mp3')
                         } else {
                             msg.channel.send('Pistä naru kaulaan ja hyppää kaivoon.')
                         }
                         isReady = true
                         break;
                     case'nukkuun':
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('😴')
-                            connection.play('./media/nukkuun.mp3')
+                            voiceConnection.play('./media/nukkuun.mp3')
                         } else {
                             msg.channel.send('Kaksyt yli kolme mä heräsin ja päätin mennä nukkuu.')
                         }
@@ -556,9 +556,9 @@ bot.on('message', async msg => {
                         isReady = true
                         break;
                     default:
-                        if (connection && isAllowedOnVoice) {
+                        if (voiceConnection && isAllowedOnVoice) {
                             await msg.react('❓')
-                            connection.play('./media/mitavittua.mp3')
+                            voiceConnection.play('./media/mitavittua.mp3')
                         } else {
                             msg.channel.send('Mitä vittua tää ny meinaa ' + sender + '?')
                         }
@@ -575,11 +575,11 @@ function getRandom(i) {
     return Math.floor(Math.random() * i)
 }
 
-function getFormattedTime(){
+function getFormattedTime() {
     let time = new Date()
 
     let year = time.getFullYear()
-    let month = time.getMonth() +1
+    let month = time.getMonth() + 1
     let day = time.getDate()
     let hour = time.getHours() + timezoneDifferenceToUTC
     let min = time.getMinutes()
@@ -591,5 +591,5 @@ function getFormattedTime(){
     min = (min < 10 ? "0" : "") + min;
     sec = (sec < 10 ? "0" : "") + sec;
 
-    return day+"."+month+"."+year+" "+hour+":"+min+":"+sec
+    return day + "." + month + "." + year + " " + hour + ":" + min + ":" + sec
 }
